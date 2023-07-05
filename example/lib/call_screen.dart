@@ -116,7 +116,7 @@ class _CallScreenState extends State<CallScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: Theme.of(context).accentColor,
+        backgroundColor: Theme.of(context).primaryColor,
         body: Container(
           child: SafeArea(
             child: Padding(
@@ -190,7 +190,7 @@ class _CallScreenState extends State<CallScreen> {
                               border:
                                   Border.all(color: Colors.white, width: 1.0),
                               color: mute
-                                  ? Theme.of(context).accentColor
+                                  ? Theme.of(context).primaryColor
                                   : Colors.white24,
                               shape: BoxShape.circle,
                             ),
