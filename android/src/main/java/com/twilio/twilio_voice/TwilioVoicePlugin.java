@@ -430,13 +430,19 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             sendPhoneCallEvents("LOG|Making new call - test");
             final HashMap<String, String> params = new HashMap<>();
             Map<String, Object> args = call.arguments();
+            sendPhoneCallEvents("LOG|test1");
+
             for (Map.Entry<String, Object> entry : args.entrySet()) {
+                sendPhoneCallEvents("LOG|test2");
+
                 String key = entry.getKey();
                 Object value = entry.getValue();
                 if (!key.equals("From") && value != null) {
                     params.put(key, value.toString());
                 }
             }
+            sendPhoneCallEvents("LOG|test3");
+
             this.callOutgoing = true;
             final ConnectOptions connectOptions = new ConnectOptions.Builder(this.accessToken)
                     .params(params)
