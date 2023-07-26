@@ -426,14 +426,12 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             this.unregisterForCallInvites(accessToken);
             result.success(true);
         } else if (call.method.equals("makeCall")) {
-            Log.d(TAG, "Making new call - test");
-            sendPhoneCallEvents("LOG|Making new call - test");
+            Log.d(TAG, "Making new call");
+            sendPhoneCallEvents("LOG|Making new call");
             final HashMap<String, String> params = new HashMap<>();
             Map<String, Object> args = call.arguments();
-            sendPhoneCallEvents("LOG|test1");
 
             for (Map.Entry<String, Object> entry : args.entrySet()) {
-                sendPhoneCallEvents("LOG|test2");
 
                 String key = entry.getKey();
                 Object value = entry.getValue();
@@ -441,20 +439,16 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                     params.put(key, value.toString());
                 }
             }
-            sendPhoneCallEvents("LOG|test3");
 
             this.callOutgoing = true;
             final ConnectOptions connectOptions = new ConnectOptions.Builder(this.accessToken)
                     .params(params)
                     .build();
             Log.d(TAG, "calling to " + call.argument("To").toString());
-            sendPhoneCallEvents("LOG|test4");
 
             this.activeCall = Voice.connect(this.activity, connectOptions, this.callListener);
-            sendPhoneCallEvents("LOG|test5");
 
             result.success(true);
-            sendPhoneCallEvents("LOG|test6");
 
         } else if (call.method.equals("registerClient")) {
             String id = call.argument("id");
