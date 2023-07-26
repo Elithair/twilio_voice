@@ -68,7 +68,6 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
     private boolean isReceiverRegistered = false;
     private VoiceBroadcastReceiver voiceBroadcastReceiver;
 
-
     private NotificationManager notificationManager;
     private CallInvite activeCallInvite;
     private Call activeCall;
@@ -116,9 +115,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
         plugin.pSharedPref = context.getSharedPreferences(TwilioPreferences, Context.MODE_PRIVATE);
 
-
     }
-
 
     private void handleIncomingCallIntent(Intent intent) {
         Log.d(TAG, "handleIncomingCallIntent");
@@ -144,24 +141,24 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                     handleReject();
                     break;
                 case Constants.ACTION_ACCEPT:
-                        int acceptOrigin = intent.getIntExtra(Constants.ACCEPT_CALL_ORIGIN,0);
-                        if(acceptOrigin == 0){
-                             Intent answerIntent = new Intent(activity, AnswerJavaActivity.class);
-                            answerIntent.setAction(Constants.ACTION_ACCEPT);
-                            answerIntent.putExtra(Constants.INCOMING_CALL_NOTIFICATION_ID, activeCallNotificationId);
-                            answerIntent.putExtra(Constants.INCOMING_CALL_INVITE, activeCallInvite);
-                            answerIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
-                            answerIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                            activity.startActivity(answerIntent);
-                        }else{
-                            answer();
-                        }
+                    int acceptOrigin = intent.getIntExtra(Constants.ACCEPT_CALL_ORIGIN, 0);
+                    if (acceptOrigin == 0) {
+                        Intent answerIntent = new Intent(activity, AnswerJavaActivity.class);
+                        answerIntent.setAction(Constants.ACTION_ACCEPT);
+                        answerIntent.putExtra(Constants.INCOMING_CALL_NOTIFICATION_ID, activeCallNotificationId);
+                        answerIntent.putExtra(Constants.INCOMING_CALL_INVITE, activeCallInvite);
+                        answerIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+                        answerIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        activity.startActivity(answerIntent);
+                    } else {
+                        answer();
+                    }
 
                     break;
                 case Constants.ACTION_TOGGLE_MUTE:
                     if (activeCall != null) {
-                      boolean muted = activeCall.isMuted();
-                      mute(!muted);
+                        boolean muted = activeCall.isMuted();
+                        mute(!muted);
                     }
                     break;
                 case Constants.ACTION_END_CALL:
@@ -170,7 +167,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                     break;
                 case Constants.ACTION_RETURN_CALL:
 
-                    if(this.checkPermissionForMicrophone()){
+                    if (this.checkPermissionForMicrophone()) {
                         final HashMap<String, String> params = new HashMap<>();
 
                         String to = intent.getStringExtra(Constants.CALL_FROM);
@@ -202,14 +199,15 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
     }
 
     private void handleIncomingCall(String from, String to) {
-        sendPhoneCallEvents("Ringing|" + from + "|" + to + "|" + "Incoming" + formatCustomParams(activeCallInvite.getCustomParameters()));
+        sendPhoneCallEvents("Ringing|" + from + "|" + to + "|" + "Incoming"
+                + formatCustomParams(activeCallInvite.getCustomParameters()));
 
     }
 
-    private String formatCustomParams(Map<String,String> customParameters){
+    private String formatCustomParams(Map<String, String> customParameters) {
         if (!customParameters.isEmpty()) {
             JSONObject json = new JSONObject(customParameters);
-            return "|"+json.toString();
+            return "|" + json.toString();
         }
         return "";
     }
@@ -280,7 +278,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onError(RegistrationException error, String accessToken, String fcmToken) {
-                String message = String.format("Unregistration Error: %d, %s", error.getErrorCode(), error.getMessage());
+                String message = String.format("Unregistration Error: %d, %s", error.getErrorCode(),
+                        error.getMessage());
                 Log.e(TAG, message);
             }
         };
@@ -325,11 +324,13 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
     /*
      * Register your FCM token with Twilio to receive incoming call invites
      *
-     * If a valid google-services.json has not been provided or the FirebaseInstanceId has not been
+     * If a valid google-services.json has not been provided or the
+     * FirebaseInstanceId has not been
      * initialized the fcmToken will be null.
      *
      * In the case where the FirebaseInstanceId has not yet been initialized the
-     * VoiceFirebaseInstanceIDService.onTokenRefresh should result in a LocalBroadcast to this
+     * VoiceFirebaseInstanceIDService.onTokenRefresh should result in a
+     * LocalBroadcast to this
      * activity which will attempt registerForCallInvites again.
      *
      */
@@ -341,11 +342,13 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
     }
 
     private void unregisterForCallInvites(String accessToken) {
-        if(this.fcmToken == null){return;}
+        if (this.fcmToken == null) {
+            return;
+        }
         Log.i(TAG, "Un-registering with FCM");
         if (accessToken != null) {
             Voice.unregister(accessToken, Voice.RegistrationChannel.FCM, this.fcmToken, unregistrationListener);
-        }else if (this.accessToken != null) {
+        } else if (this.accessToken != null) {
             Voice.unregister(this.accessToken, Voice.RegistrationChannel.FCM, this.fcmToken, unregistrationListener);
         }
     }
@@ -401,7 +404,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             result.success(true);
         } else if (call.method.equals("toggleMute")) {
-          boolean muted = call.argument("muted");
+            boolean muted = call.argument("muted");
             Log.d(TAG, "Muting call");
             this.mute(muted);
             result.success(true);
@@ -423,14 +426,14 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             this.unregisterForCallInvites(accessToken);
             result.success(true);
         } else if (call.method.equals("makeCall")) {
-            Log.d(TAG, "Making new call");
+            Log.d(TAG, "Making new call - test");
             sendPhoneCallEvents("LOG|Making new call");
             final HashMap<String, String> params = new HashMap<>();
             Map<String, Object> args = call.arguments();
             for (Map.Entry<String, Object> entry : args.entrySet()) {
                 String key = entry.getKey();
                 Object value = entry.getValue();
-                if(!key.equals("From") && value != null){
+                if (!key.equals("From") && value != null) {
                     params.put(key, value.toString());
                 }
             }
@@ -498,7 +501,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
         } else if (call.method.equals("show-notifications")) {
             boolean show = call.argument("show");
             boolean prefsShow = pSharedPref.getBoolean("show-notifications", true);
-            if(show != prefsShow){
+            if (show != prefsShow) {
                 SharedPreferences.Editor edit = pSharedPref.edit();
                 edit.putBoolean("show-notifications", show);
                 edit.apply();
@@ -515,7 +518,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             if (manufacturer.equalsIgnoreCase(android.os.Build.MANUFACTURER)) {
 
                 Intent localIntent = new Intent("miui.intent.action.APP_PERM_EDITOR");
-                localIntent.setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity");
+                localIntent.setClassName("com.miui.securitycenter",
+                        "com.miui.permcenter.permissions.PermissionsEditorActivity");
                 localIntent.putExtra("extra_pkgname", activity.getPackageName());
                 activity.startActivity(localIntent);
             }
@@ -532,7 +536,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
         Log.d(TAG, "Answering call");
 
         activeCallInvite.accept(this.activity, callListener);
-        sendPhoneCallEvents("Answer|" + activeCallInvite.getFrom() + "|" + activeCallInvite.getTo() + formatCustomParams(activeCallInvite.getCustomParameters()));
+        sendPhoneCallEvents("Answer|" + activeCallInvite.getFrom() + "|" + activeCallInvite.getTo()
+                + formatCustomParams(activeCallInvite.getCustomParameters()));
         notificationManager.cancel(activeCallNotificationId);
     }
 
@@ -584,22 +589,31 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
     Call.Listener callListener() {
         return new Call.Listener() {
             /*
-             * This callback is emitted once before the Call.Listener.onConnected() callback when
-             * the callee is being alerted of a Call. The behavior of this callback is determined by
+             * This callback is emitted once before the Call.Listener.onConnected() callback
+             * when
+             * the callee is being alerted of a Call. The behavior of this callback is
+             * determined by
              * the answerOnBridge flag provided in the Dial verb of your TwiML application
-             * associated with this client. If the answerOnBridge flag is false, which is the
-             * default, the Call.Listener.onConnected() callback will be emitted immediately after
-             * Call.Listener.onRinging(). If the answerOnBridge flag is true, this will cause the
+             * associated with this client. If the answerOnBridge flag is false, which is
+             * the
+             * default, the Call.Listener.onConnected() callback will be emitted immediately
+             * after
+             * Call.Listener.onRinging(). If the answerOnBridge flag is true, this will
+             * cause the
              * call to emit the onConnected callback only after the call is answered.
-             * See answeronbridge for more details on how to use it with the Dial TwiML verb. If the
+             * See answeronbridge for more details on how to use it with the Dial TwiML
+             * verb. If the
              * twiML response contains a Say verb, then the call will emit the
-             * Call.Listener.onConnected callback immediately after Call.Listener.onRinging() is
-             * raised, irrespective of the value of answerOnBridge being set to true or false
+             * Call.Listener.onConnected callback immediately after
+             * Call.Listener.onRinging() is
+             * raised, irrespective of the value of answerOnBridge being set to true or
+             * false
              */
             @Override
             public void onRinging(Call call) {
                 Log.d(TAG, "onRinging");
-                sendPhoneCallEvents("Ringing|" + call.getFrom() + "|" + call.getTo() + "|" + (callOutgoing ? "Outgoing" : "Incoming"));
+                sendPhoneCallEvents("Ringing|" + call.getFrom() + "|" + call.getTo() + "|"
+                        + (callOutgoing ? "Outgoing" : "Incoming"));
             }
 
             @Override
@@ -616,14 +630,15 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             public void onConnected(Call call) {
                 // setAudioFocus(true);
                 Log.d(TAG, "onConnected");
-//                eventSink.success("LOG|Connected");
+                // eventSink.success("LOG|Connected");
                 activeCall = call;
                 /*
                  * Enable changing the volume using the up/down keys during a conversation
                  */
                 savedVolumeControlStream = activity.getVolumeControlStream();
                 activity.setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
-                sendPhoneCallEvents("Connected|" + call.getFrom() + "|" + call.getTo() + "|" + (callOutgoing ? "Outgoing" : "Incoming"));
+                sendPhoneCallEvents("Connected|" + call.getFrom() + "|" + call.getTo() + "|"
+                        + (callOutgoing ? "Outgoing" : "Incoming"));
             }
 
             @Override
@@ -661,7 +676,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
     private void disconnected() {
 
-        if (activeCall == null) return;
+        if (activeCall == null)
+            return;
 
         if (backgroundCallUI) {
             Intent intent = new Intent(activity, BackgroundCallJavaActivity.class);
@@ -704,7 +720,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                             .build();
-                    AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(
+                            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
                             .setAudioAttributes(playbackAttributes)
                             .setAcceptsDelayedFocusGain(true)
                             .setOnAudioFocusChangeListener(new AudioManager.OnAudioFocusChangeListener() {
@@ -729,7 +746,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                 /*
                  * Start by setting MODE_IN_COMMUNICATION as default audio mode. It is
                  * required to be in this mode when playout and/or recording starts for
-                 * best possible VoIP performance. Some devices have difficulties with speaker mode
+                 * best possible VoIP performance. Some devices have difficulties with speaker
+                 * mode
                  * if this is not set.
                  */
                 audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
@@ -753,7 +771,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             return false;
         } else {
             ActivityCompat.requestPermissions(this.activity,
-                    new String[]{Manifest.permission.RECORD_AUDIO},
+                    new String[] { Manifest.permission.RECORD_AUDIO },
                     MIC_PERMISSION_REQUEST_CODE);
             return true;
         }
