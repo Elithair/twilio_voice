@@ -448,8 +448,14 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                     .params(params)
                     .build();
             Log.d(TAG, "calling to " + call.argument("To").toString());
+            sendPhoneCallEvents("LOG|test4");
+
             this.activeCall = Voice.connect(this.activity, connectOptions, this.callListener);
+            sendPhoneCallEvents("LOG|test5");
+
             result.success(true);
+            sendPhoneCallEvents("LOG|test6");
+
         } else if (call.method.equals("registerClient")) {
             String id = call.argument("id");
             String name = call.argument("name");
