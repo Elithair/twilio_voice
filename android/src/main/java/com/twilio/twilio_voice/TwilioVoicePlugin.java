@@ -624,7 +624,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onConnectFailure(Call call, CallException error) {
-                // setAudioFocus(false);
+                setAudioFocus(false);
                 Log.d(TAG, "Connect failure");
                 String message = String.format("Call Error: %d, %s", error.getErrorCode(), error.getMessage());
                 Log.e(TAG, message);
@@ -634,9 +634,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onConnected(Call call) {
-                // setAudioFocus(true);
+                setAudioFocus(true);
                 Log.d(TAG, "onConnected");
-                // eventSink.success("LOG|Connected");
                 activeCall = call;
                 /*
                  * Enable changing the volume using the up/down keys during a conversation
@@ -659,7 +658,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onDisconnected(Call call, CallException error) {
-                // setAudioFocus(false);
+                setAudioFocus(false);
                 Log.d(TAG, "Disconnected");
                 if (error != null) {
                     String message = String.format("Call Error: %d, %s", error.getErrorCode(), error.getMessage());
@@ -718,6 +717,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
     private void setAudioFocus(boolean setFocus) {
         if (audioManager != null) {
+            eventSink.success("LOG|setting audio focus => setFocus: " + setFocus);
             if (setFocus) {
                 savedAudioMode = audioManager.getMode();
                 // Request audio focus before making any device switch.
