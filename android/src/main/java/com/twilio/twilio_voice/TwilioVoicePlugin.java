@@ -624,7 +624,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onConnectFailure(Call call, CallException error) {
-                setAudioFocus(false);
+                // setAudioFocus(false);
                 Log.d(TAG, "Connect failure");
                 String message = String.format("Call Error: %d, %s", error.getErrorCode(), error.getMessage());
                 Log.e(TAG, message);
@@ -634,7 +634,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onConnected(Call call) {
-                setAudioFocus(true);
+                // setAudioFocus(true);
                 Log.d(TAG, "onConnected");
                 activeCall = call;
                 /*
@@ -658,7 +658,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onDisconnected(Call call, CallException error) {
-                setAudioFocus(false);
+                // setAudioFocus(false);
                 Log.d(TAG, "Disconnected");
                 if (error != null) {
                     String message = String.format("Call Error: %d, %s", error.getErrorCode(), error.getMessage());
