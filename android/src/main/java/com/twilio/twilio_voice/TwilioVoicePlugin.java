@@ -624,7 +624,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onConnectFailure(Call call, CallException error) {
-                // setAudioFocus(false);
+                setAudioFocus(false);
                 Log.d(TAG, "Connect failure");
                 String message = String.format("Call Error: %d, %s", error.getErrorCode(), error.getMessage());
                 Log.e(TAG, message);
@@ -634,7 +634,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onConnected(Call call) {
-                // setAudioFocus(true);
+                setAudioFocus(true);
                 Log.d(TAG, "onConnected");
                 activeCall = call;
                 /*
@@ -658,7 +658,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onDisconnected(Call call, CallException error) {
-                // setAudioFocus(false);
+                setAudioFocus(false);
                 Log.d(TAG, "Disconnected");
                 if (error != null) {
                     String message = String.format("Call Error: %d, %s", error.getErrorCode(), error.getMessage());
@@ -717,11 +717,14 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
     private void setAudioFocus(boolean setFocus) {
         if (audioManager != null) {
-            eventSink.success("LOG|setting audio focus => setFocus: " + setFocus);
+            sendPhoneCallEvents("LOG|setting audio focus => setFocus:" + setFocus);
             if (setFocus) {
                 savedAudioMode = audioManager.getMode();
+                sendPhoneCallEvents("LOG|saveAudioMode =>:" + savedAudioMode);
+
                 // Request audio focus before making any device switch.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    sendPhoneCallEvents("LOG|inside if");
                     AudioAttributes playbackAttributes = new AudioAttributes.Builder()
                             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
                             .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
@@ -733,12 +736,23 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                             .setOnAudioFocusChangeListener(new AudioManager.OnAudioFocusChangeListener() {
                                 @Override
                                 public void onAudioFocusChange(int i) {
+                                    sendPhoneCallEvents("LOG|audio focus change =>:" + i);
                                 }
                             })
                             .build();
-                    audioManager.requestAudioFocus(focusRequest);
+                    int result = audioManager.requestAudioFocus(focusRequest);
+                    sendPhoneCallEvents("LOG|request result =>:" + result);
+
+                    if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+                        sendPhoneCallEvents("LOG|request result granted:");
+                        audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+
+                    }
                 } else {
+                    sendPhoneCallEvents("LOG|inside else");
+
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.FROYO) {
+
                         int focusRequestResult = audioManager.requestAudioFocus(
                                 new AudioManager.OnAudioFocusChangeListener() {
 
@@ -747,6 +761,8 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                                     }
                                 }, AudioManager.STREAM_VOICE_CALL,
                                 AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
+                        sendPhoneCallEvents("LOG|inside if" + focusRequestResult);
+
                     }
                 }
                 /*
@@ -756,12 +772,21 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                  * mode
                  * if this is not set.
                  */
+                if(audioManager.isBluetoothA2dpOn() || audioManager.isBluetoothScoOn()){
+                    audioManager.startBluetoothSco();
+                    audioManager.setBluetoothScoOn(true);
+
+                }
                 audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
             } else {
+                audioManager.stopBluetoothSco();
+                audioManager.setBluetoothScoOn(false);
                 audioManager.setMode(savedAudioMode);
                 audioManager.abandonAudioFocus(null);
             }
         }
+        sendPhoneCallEvents("LOG|null audio focus => setFocus:" + setFocus);
+
     }
 
     private boolean checkPermissionForMicrophone() {
