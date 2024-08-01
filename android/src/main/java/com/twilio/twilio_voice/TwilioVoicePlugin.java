@@ -10,7 +10,6 @@ import com.twilio.voice.RegistrationException;
 import com.twilio.voice.RegistrationListener;
 import com.twilio.voice.UnregistrationListener;
 import com.twilio.voice.Voice;
-import com.twilio.twilio_voice.AnswerJavaActivity;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,10 +26,13 @@ import android.content.pm.PackageManager;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.media.audiofx.AcousticEchoCanceler;
+import android.media.audiofx.AutomaticGainControl;
+import android.media.audiofx.Equalizer;
+import android.media.audiofx.NoiseSuppressor;
 import android.os.Build;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.lifecycle.Lifecycle;
@@ -48,11 +50,9 @@ import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.Result;
 import io.flutter.plugin.common.PluginRegistry;
+import tvo.webrtc.voiceengine.WebRtcAudioUtils;
 
-import static java.lang.Boolean.getBoolean;
-
-public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler,
-        ActivityAware, PluginRegistry.NewIntentListener {
+public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCallHandler, EventChannel.StreamHandler, ActivityAware, PluginRegistry.NewIntentListener {
 
     private static final String CHANNEL_NAME = "twilio_voice";
     private static final String TAG = "TwilioVoicePlugin";
@@ -78,6 +78,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
     RegistrationListener registrationListener = registrationListener();
     UnregistrationListener unregistrationListener = unregistrationListener();
     Call.Listener callListener = callListener();
+    CustomAudioDevice customAudioDevice;
     private MethodChannel methodChannel;
     private EventChannel eventChannel;
     private EventChannel.EventSink eventSink;
@@ -91,6 +92,12 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
         register(flutterPluginBinding.getBinaryMessenger(), this, flutterPluginBinding.getApplicationContext());
         hasStarted = true;
+
+        /*
+         * Create custom audio device FileAndMicAudioDevice and set the audio device
+         */
+        customAudioDevice = new CustomAudioDevice(context);
+        Voice.setAudioDevice(customAudioDevice);
     }
 
     private static void register(BinaryMessenger messenger, TwilioVoicePlugin plugin, Context context) {
@@ -176,9 +183,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                         params.put("To", to.replace("client:", ""));
                         sendPhoneCallEvents("ReturningCall|" + from + "|" + to + "|" + "Incoming");
                         this.callOutgoing = true;
-                        final ConnectOptions connectOptions = new ConnectOptions.Builder(this.accessToken)
-                                .params(params)
-                                .build();
+                        final ConnectOptions connectOptions = new ConnectOptions.Builder(this.accessToken).params(params).build();
                         this.activeCall = Voice.connect(this.activity, connectOptions, this.callListener);
                     }
                     break;
@@ -199,8 +204,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
     }
 
     private void handleIncomingCall(String from, String to) {
-        sendPhoneCallEvents("Ringing|" + from + "|" + to + "|" + "Incoming"
-                + formatCustomParams(activeCallInvite.getCustomParameters()));
+        sendPhoneCallEvents("Ringing|" + from + "|" + to + "|" + "Incoming" + formatCustomParams(activeCallInvite.getCustomParameters()));
 
     }
 
@@ -241,8 +245,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             intentFilter.addAction(Constants.ACTION_END_CALL);
             intentFilter.addAction(Constants.ACTION_TOGGLE_MUTE);
             intentFilter.addAction(Constants.ACTION_RETURN_CALL);
-            LocalBroadcastManager.getInstance(this.activity).registerReceiver(
-                    voiceBroadcastReceiver, intentFilter);
+            LocalBroadcastManager.getInstance(this.activity).registerReceiver(voiceBroadcastReceiver, intentFilter);
             isReceiverRegistered = true;
         }
     }
@@ -278,8 +281,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
             @Override
             public void onError(RegistrationException error, String accessToken, String fcmToken) {
-                String message = String.format("Unregistration Error: %d, %s", error.getErrorCode(),
-                        error.getMessage());
+                String message = String.format("Unregistration Error: %d, %s", error.getErrorCode(), error.getMessage());
                 Log.e(TAG, message);
             }
         };
@@ -298,26 +300,25 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             String action = intent.getAction();
             Log.d(TAG, "Received broadcast for action " + action);
 
-            if (action != null)
-                switch (action) {
-                    case Constants.ACTION_INCOMING_CALL:
-                    case Constants.ACTION_CANCEL_CALL:
-                    case Constants.ACTION_REJECT:
-                    case Constants.ACTION_ACCEPT:
-                    case Constants.ACTION_TOGGLE_MUTE:
-                    case Constants.ACTION_END_CALL:
-                    case Constants.ACTION_RETURN_CALL:
+            if (action != null) switch (action) {
+                case Constants.ACTION_INCOMING_CALL:
+                case Constants.ACTION_CANCEL_CALL:
+                case Constants.ACTION_REJECT:
+                case Constants.ACTION_ACCEPT:
+                case Constants.ACTION_TOGGLE_MUTE:
+                case Constants.ACTION_END_CALL:
+                case Constants.ACTION_RETURN_CALL:
 
-                        /*
-                         * Handle the incoming or cancelled call invite
-                         */
-                        plugin.handleIncomingCallIntent(intent);
-                        break;
-                    default:
-                        Log.d(TAG, "Received broadcast for other action " + action);
-                        break;
+                    /*
+                     * Handle the incoming or cancelled call invite
+                     */
+                    plugin.handleIncomingCallIntent(intent);
+                    break;
+                default:
+                    Log.d(TAG, "Received broadcast for other action " + action);
+                    break;
 
-                }
+            }
         }
     }
 
@@ -441,9 +442,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             }
 
             this.callOutgoing = true;
-            final ConnectOptions connectOptions = new ConnectOptions.Builder(this.accessToken)
-                    .params(params)
-                    .build();
+            final ConnectOptions connectOptions = new ConnectOptions.Builder(this.accessToken).params(params).build();
             Log.d(TAG, "calling to " + call.argument("To").toString());
 
             this.activeCall = Voice.connect(this.activity, connectOptions, this.callListener);
@@ -524,8 +523,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             if (manufacturer.equalsIgnoreCase(android.os.Build.MANUFACTURER)) {
 
                 Intent localIntent = new Intent("miui.intent.action.APP_PERM_EDITOR");
-                localIntent.setClassName("com.miui.securitycenter",
-                        "com.miui.permcenter.permissions.PermissionsEditorActivity");
+                localIntent.setClassName("com.miui.securitycenter", "com.miui.permcenter.permissions.PermissionsEditorActivity");
                 localIntent.putExtra("extra_pkgname", activity.getPackageName());
                 activity.startActivity(localIntent);
             }
@@ -542,8 +540,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
         Log.d(TAG, "Answering call");
 
         activeCallInvite.accept(this.activity, callListener);
-        sendPhoneCallEvents("Answer|" + activeCallInvite.getFrom() + "|" + activeCallInvite.getTo()
-                + formatCustomParams(activeCallInvite.getCustomParameters()));
+        sendPhoneCallEvents("Answer|" + activeCallInvite.getFrom() + "|" + activeCallInvite.getTo() + formatCustomParams(activeCallInvite.getCustomParameters()));
         notificationManager.cancel(activeCallNotificationId);
     }
 
@@ -618,8 +615,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             @Override
             public void onRinging(Call call) {
                 Log.d(TAG, "onRinging");
-                sendPhoneCallEvents("Ringing|" + call.getFrom() + "|" + call.getTo() + "|"
-                        + (callOutgoing ? "Outgoing" : "Incoming"));
+                sendPhoneCallEvents("Ringing|" + call.getFrom() + "|" + call.getTo() + "|" + (callOutgoing ? "Outgoing" : "Incoming"));
             }
 
             @Override
@@ -637,13 +633,14 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                 setAudioFocus(true);
                 Log.d(TAG, "onConnected");
                 activeCall = call;
+
+
                 /*
                  * Enable changing the volume using the up/down keys during a conversation
                  */
                 savedVolumeControlStream = activity.getVolumeControlStream();
                 activity.setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
-                sendPhoneCallEvents("Connected|" + call.getFrom() + "|" + call.getTo() + "|"
-                        + (callOutgoing ? "Outgoing" : "Incoming"));
+                sendPhoneCallEvents("Connected|" + call.getFrom() + "|" + call.getTo() + "|" + (callOutgoing ? "Outgoing" : "Incoming"));
             }
 
             @Override
@@ -681,8 +678,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
 
     private void disconnected() {
 
-        if (activeCall == null)
-            return;
+        if (activeCall == null) return;
 
         if (backgroundCallUI) {
             Intent intent = new Intent(activity, BackgroundCallJavaActivity.class);
@@ -719,27 +715,25 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
         if (audioManager != null) {
             sendPhoneCallEvents("LOG|setting audio focus => setFocus:" + setFocus);
             if (setFocus) {
+                // While we are at it set the stream volume too
+                audioManager.setStreamVolume(AudioManager.STREAM_VOICE_CALL, audioManager.getStreamMaxVolume(AudioManager.STREAM_VOICE_CALL), 0);
+
+                // Set audio effect here for now
+                enableAudioEffects();
+
                 savedAudioMode = audioManager.getMode();
                 sendPhoneCallEvents("LOG|saveAudioMode =>:" + savedAudioMode);
 
                 // Request audio focus before making any device switch.
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     sendPhoneCallEvents("LOG|inside if");
-                    AudioAttributes playbackAttributes = new AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build();
-                    AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(
-                            AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                            .setAudioAttributes(playbackAttributes)
-                            .setAcceptsDelayedFocusGain(true)
-                            .setOnAudioFocusChangeListener(new AudioManager.OnAudioFocusChangeListener() {
-                                @Override
-                                public void onAudioFocusChange(int i) {
-                                    sendPhoneCallEvents("LOG|audio focus change =>:" + i);
-                                }
-                            })
-                            .build();
+                    AudioAttributes playbackAttributes = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build();
+                    AudioFocusRequest focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE).setAudioAttributes(playbackAttributes).setAcceptsDelayedFocusGain(true).setOnAudioFocusChangeListener(new AudioManager.OnAudioFocusChangeListener() {
+                        @Override
+                        public void onAudioFocusChange(int i) {
+                            sendPhoneCallEvents("LOG|audio focus change =>:" + i);
+                        }
+                    }).build();
                     int result = audioManager.requestAudioFocus(focusRequest);
                     sendPhoneCallEvents("LOG|request result =>:" + result);
 
@@ -751,19 +745,9 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                 } else {
                     sendPhoneCallEvents("LOG|inside else");
 
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.FROYO) {
-
-                        int focusRequestResult = audioManager.requestAudioFocus(
-                                new AudioManager.OnAudioFocusChangeListener() {
-
-                                    @Override
-                                    public void onAudioFocusChange(int focusChange) {
-                                    }
-                                }, AudioManager.STREAM_VOICE_CALL,
-                                AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
-                        sendPhoneCallEvents("LOG|inside if" + focusRequestResult);
-
-                    }
+                    audioManager.requestAudioFocus(focusChange -> {
+                        sendPhoneCallEvents("LOG|inside if" + focusChange);
+                    }, AudioManager.STREAM_VOICE_CALL, AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
                 }
                 /*
                  * Start by setting MODE_IN_COMMUNICATION as default audio mode. It is
@@ -772,7 +756,7 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
                  * mode
                  * if this is not set.
                  */
-                if(audioManager.isBluetoothA2dpOn() || audioManager.isBluetoothScoOn()){
+                if (audioManager.isBluetoothA2dpOn() || audioManager.isBluetoothScoOn()) {
                     audioManager.startBluetoothSco();
                     audioManager.setBluetoothScoOn(true);
 
@@ -801,18 +785,120 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             sendPhoneCallEvents("RequestMicrophoneAccess");
             return false;
         } else {
-            ActivityCompat.requestPermissions(this.activity,
-                    new String[] { Manifest.permission.RECORD_AUDIO },
-                    MIC_PERMISSION_REQUEST_CODE);
+            ActivityCompat.requestPermissions(this.activity, new String[]{Manifest.permission.RECORD_AUDIO}, MIC_PERMISSION_REQUEST_CODE);
             return true;
         }
     }
 
     private boolean isAppVisible() {
-        return ProcessLifecycleOwner
-                .get()
-                .getLifecycle()
-                .getCurrentState()
-                .isAtLeast(Lifecycle.State.STARTED);
+        return ProcessLifecycleOwner.get().getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.STARTED);
     }
+
+    private void enableAudioEffects() {
+        int audioSessionId = customAudioDevice.audioSessionId;
+        int recordSessionId = customAudioDevice.recordAudioSessionId;
+        Log.v(TAG, "Attempting to enable audio effects for session ID: " + audioSessionId + " and for record session ID: " + recordSessionId);
+
+        if (AcousticEchoCanceler.isAvailable()) {
+            Log.v(TAG, "HW-Based Acoustic Echo Canceler is available. Creating instance...");
+            AcousticEchoCanceler aec = AcousticEchoCanceler.create(recordSessionId);
+            if (aec != null) {
+                try {
+                    Log.v(TAG, "HW-Based Acoustic Echo Canceler created successfully. Enabling...");
+                    aec.setEnabled(true);
+                    Log.i(TAG, "HW-Based Acoustic Echo Canceler enabled");
+                } catch (RuntimeException e) {
+                    Log.e(TAG, "Error enabling HW-Based Acoustic Echo Canceler", e);
+                    WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(true);
+                    Log.i(TAG, "WebRTC-based Acoustic Echo Canceler set");
+                }
+            } else {
+                Log.e(TAG, "Failed to create HW-Based Acoustic Echo Canceler");
+                WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(true);
+                Log.i(TAG, "WebRTC-based Acoustic Echo Canceler set");
+            }
+        } else {
+            Log.e(TAG, "HW-Based Acoustic Echo Canceler is not available on this device");
+            WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(true);
+            Log.i(TAG, "WebRTC-based Acoustic Echo Canceler set");
+        }
+
+        if (NoiseSuppressor.isAvailable()) {
+            Log.v(TAG, "HW-Based Noise Suppressor is available. Creating instance...");
+            NoiseSuppressor ns = NoiseSuppressor.create(recordSessionId);
+            if (ns != null) {
+                try {
+                    Log.v(TAG, "HW-Based Noise Suppressor created successfully. Enabling...");
+                    ns.setEnabled(true);
+                    Log.i(TAG, "HW-Based Noise Suppressor enabled");
+                } catch (RuntimeException e) {
+                    Log.e(TAG, "Error enabling HW-Based Noise Suppressor", e);
+                    WebRtcAudioUtils.setWebRtcBasedNoiseSuppressor(true);
+                    Log.i(TAG, "WebRTC-based Noise Suppressor set");
+                }
+            } else {
+                Log.e(TAG, "Failed to create HW-Based Noise Suppressor");
+                WebRtcAudioUtils.setWebRtcBasedNoiseSuppressor(true);
+                Log.i(TAG, "WebRTC-based Noise Suppressor set");
+            }
+        } else {
+            Log.e(TAG, "HW-Based Noise Suppressor is not available on this device");
+            WebRtcAudioUtils.setWebRtcBasedNoiseSuppressor(true);
+            Log.i(TAG, "WebRTC-based Noise Suppressor set");
+        }
+
+        if (AutomaticGainControl.isAvailable()) {
+            Log.v(TAG, "HW-Based Automatic Gain Control is available. Creating instance...");
+            AutomaticGainControl agc = AutomaticGainControl.create(recordSessionId);
+            if (agc != null) {
+                try {
+                    Log.v(TAG, "HW-Based Automatic Gain Control created successfully. Enabling...");
+                    agc.setEnabled(true);
+                    Log.i(TAG, "HW-Based Automatic Gain Control enabled");
+                } catch (RuntimeException e) {
+                    Log.e(TAG, "Error enabling HW-Based Automatic Gain Control", e);
+                    WebRtcAudioUtils.setWebRtcBasedAutomaticGainControl(true);
+                    Log.i(TAG, "WebRTC-based Automatic Gain Control set");
+                }
+            } else {
+                Log.e(TAG, "Failed to create HW-Based Automatic Gain Control");
+                WebRtcAudioUtils.setWebRtcBasedAutomaticGainControl(true);
+                Log.i(TAG, "WebRTC-based Automatic Gain Control set");
+            }
+        } else {
+            Log.e(TAG, "HW-Based Automatic Gain Control is not available on this device");
+            WebRtcAudioUtils.setWebRtcBasedAutomaticGainControl(true);
+            Log.i(TAG, "WebRTC-based Automatic Gain Control set");
+        }
+
+        Equalizer equalizer = new Equalizer(0, audioSessionId);
+        try {
+            equalizer.setEnabled(true);
+            Log.i(TAG, "Equalizer enabled");
+
+            // Get the number of bands and the level range
+            short bandCount = equalizer.getNumberOfBands();
+            short[] bandLevels = new short[bandCount];
+            short maxBandLevel = equalizer.getBandLevelRange()[1];
+            short targetLevel = (short) Math.min(maxBandLevel, 3000); // 3000 corresponds to +3 dB
+
+
+            Log.v(TAG, "Current Equalizer band levels:");
+            for (short band = 0; band < bandCount; band++) {
+                // Log the current levels for each band
+                bandLevels[band] = equalizer.getBandLevel(band);
+                Log.v(TAG, "Band " + band + " Hz, Level = " + bandLevels[band] + " mB");
+
+                // Boost each band by +3 dB
+                equalizer.setBandLevel(band, targetLevel);
+                // Log the new levels for each band
+                Log.v(TAG, "Band " + band + " Hz, New Level = " + targetLevel + " mB");
+            }
+            Log.i(TAG, "Equalizer band levels are adjusted to " + targetLevel);
+
+        } catch (RuntimeException e) {
+            Log.e(TAG, "Error enabling Equalizer", e);
+        }
+    }
+
 }
