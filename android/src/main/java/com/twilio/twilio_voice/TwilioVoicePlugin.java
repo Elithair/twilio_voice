@@ -880,21 +880,19 @@ public class TwilioVoicePlugin implements FlutterPlugin, MethodChannel.MethodCal
             short bandCount = equalizer.getNumberOfBands();
             short[] bandLevels = new short[bandCount];
             short maxBandLevel = equalizer.getBandLevelRange()[1];
-            short targetLevel = (short) Math.min(maxBandLevel, 3000); // 3000 corresponds to +3 dB
-
-
+            
             Log.v(TAG, "Current Equalizer band levels:");
             for (short band = 0; band < bandCount; band++) {
                 // Log the current levels for each band
                 bandLevels[band] = equalizer.getBandLevel(band);
                 Log.v(TAG, "Band " + band + " Hz, Level = " + bandLevels[band] + " mB");
 
-                // Boost each band by +3 dB
-                equalizer.setBandLevel(band, targetLevel);
+                // Boost each band to max
+                equalizer.setBandLevel(band, maxBandLevel);
                 // Log the new levels for each band
-                Log.v(TAG, "Band " + band + " Hz, New Level = " + targetLevel + " mB");
+                Log.v(TAG, "Band " + band + " Hz, New Level = " + maxBandLevel + " mB");
             }
-            Log.i(TAG, "Equalizer band levels are adjusted to " + targetLevel);
+            Log.i(TAG, "Equalizer band levels are adjusted to " + maxBandLevel);
 
         } catch (RuntimeException e) {
             Log.e(TAG, "Error enabling Equalizer", e);
